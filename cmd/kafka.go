@@ -35,10 +35,11 @@ func (kafka *Kafka) Connect(host string) error {
 	return nil
 }
 
-func (kafka *Kafka) Write(request *bytes.Buffer) error {
-	binary.BigEndian.PutUint32(request.Bytes()[0:], uint32(request.Len()-4))
-
-	_, err := kafka.conn.Write(request.Bytes())
+func (kafka *Kafka) Write(request []byte) error {
+	buf := bytes.NewBuffer([]byte{})
+	binary.Write(buf, binary.BigEndian, uint32(len(request)))
+	binary.Write(buf, binary.BigEndian, request)
+	_, err := kafka.conn.Write(buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to send handshake: %s", err)
 	}

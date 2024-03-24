@@ -29,13 +29,25 @@ func (topics ForgottenTopicList) Byte() []byte {
 	return buf.Bytes()
 }
 
-type FetchRequestV11 struct {
-	Length        int32
+type RequestHeader struct {
 	APIKey        int16
 	APIVersion    int16
 	CorrelationID int32
 	ClientId      string
+}
 
+func (requestHeader *RequestHeader) Byte() []byte {
+	buf := bytes.NewBuffer([]byte{})
+	binary.Write(buf, binary.BigEndian, requestHeader.APIKey)
+	binary.Write(buf, binary.BigEndian, requestHeader.APIVersion)
+	binary.Write(buf, binary.BigEndian, requestHeader.CorrelationID)
+	binary.Write(buf, binary.BigEndian, uint16(len(requestHeader.ClientId)))
+	binary.Write(buf, binary.BigEndian, []byte(requestHeader.ClientId))
+	return buf.Bytes()
+}
+
+type FetchRequestV11 struct {
+	RequestHeader     RequestHeader
 	ReplicaID         int32
 	MaxWaitTime       int32
 	MinBytes          int32
@@ -50,11 +62,12 @@ type FetchRequestV11 struct {
 
 func (kafka *Kafka) NewFetchRequestV11(topic string) *FetchRequestV11 {
 	return &FetchRequestV11{
-		Length:            0,
-		APIKey:            API_KEY_FETCH,
-		APIVersion:        11,
-		CorrelationID:     7,
-		ClientId:          kafka.ClientId,
+		RequestHeader: RequestHeader{
+			APIKey:        API_KEY_FETCH,
+			APIVersion:    11,
+			CorrelationID: 7,
+			ClientId:      kafka.ClientId,
+		},
 		ReplicaID:         kafka.ReplicaId,
 		MaxWaitTime:       500,
 		MinBytes:          1,
@@ -79,14 +92,9 @@ func (kafka *Kafka) NewFetchRequestV11(topic string) *FetchRequestV11 {
 	}
 }
 
-func (fetchRequest *FetchRequestV11) Byte() *bytes.Buffer {
+func (fetchRequest *FetchRequestV11) Byte() []byte {
 	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, fetchRequest.Length)
-	binary.Write(buf, binary.BigEndian, fetchRequest.APIKey)
-	binary.Write(buf, binary.BigEndian, fetchRequest.APIVersion)
-	binary.Write(buf, binary.BigEndian, fetchRequest.CorrelationID)
-	binary.Write(buf, binary.BigEndian, uint16(len(fetchRequest.ClientId)))
-	binary.Write(buf, binary.BigEndian, []byte(fetchRequest.ClientId))
+	binary.Write(buf, binary.BigEndian, fetchRequest.RequestHeader.Byte())
 	binary.Write(buf, binary.BigEndian, fetchRequest.ReplicaID)
 	binary.Write(buf, binary.BigEndian, fetchRequest.MaxWaitTime)
 	binary.Write(buf, binary.BigEndian, fetchRequest.MinBytes)
@@ -98,7 +106,7 @@ func (fetchRequest *FetchRequestV11) Byte() *bytes.Buffer {
 	binary.Write(buf, binary.BigEndian, fetchRequest.ForgottenTopics.Byte())
 	binary.Write(buf, binary.BigEndian, uint16(len(fetchRequest.RackId)))
 	binary.Write(buf, binary.BigEndian, []byte(fetchRequest.RackId))
-	return buf
+	return buf.Bytes()
 }
 
 type FetchTopicV11 struct {
