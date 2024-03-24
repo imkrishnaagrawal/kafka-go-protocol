@@ -40,38 +40,42 @@ func (kafka *Kafka) APIVersion() *bytes.Buffer {
 func (kafka *Kafka) Fetch(topic string) (*FetchResponse, error) {
 
 	request := bytes.NewBuffer([]byte{})
-	request.Write(Uint32bytes(0))  // Request Size
-	request.Write(Uint16bytes(1))  // API KEY
-	request.Write(Uint16bytes(11)) // API Version
-	request.Write(Uint32bytes(7))  // Correlation ID
-
+	request.Write(Uint32bytes(0))                   // Request Size
+	request.Write(Uint16bytes(1))                   // API KEY
+	request.Write(Uint16bytes(11))                  // API Version
+	request.Write(Uint32bytes(7))                   // Correlation ID
 	request.Write(Uint16bytes(len(kafka.ClientId))) // Client
 	request.WriteString(kafka.ClientId)
-
-	request.Write(Uint32bytes(kafka.ReplicaId))
+	request.Write(Uint32bytes(int(kafka.ReplicaId)))
 	request.Write(Uint32bytes(500))
 	request.Write(Uint32bytes(1))
 	request.Write(Uint32bytes(52428800))
 	request.Write([]byte{1})
 	request.Write(Uint32bytes(0))
 	request.Write(Uint32bytes(-1))
+
 	request.Write(Uint32bytes(1))
 
 	request.Write(Uint16bytes(len(topic)))
 	request.WriteString(topic)
-	request.Write(Uint32bytes(1))
+
+	request.Write(Uint32bytes(1)) // parti len
+
+	request.Write(Uint32bytes(0)) // partId
+	request.Write(Uint32bytes(0)) // Leader Epoch
 
 	request.Write(Uint32bytes(0))
 	request.Write(Uint32bytes(0))
-	request.Write(Uint32bytes(0))
-	request.Write(Uint32bytes(0))
+
 	request.Write(Uint32bytes(-1))
 	request.Write(Uint32bytes(-1))
+
 	request.Write(Uint32bytes(1048576))
 	request.Write(Uint32bytes(0))
 	request.Write(Uint16bytes(0))
 
-	err := kafka.Write(request)
+	fetchRequest := kafka.NewFetchRequestV11(topic)
+	err := kafka.Write(fetchRequest.Byte())
 	if err != nil {
 		return nil, err
 	}

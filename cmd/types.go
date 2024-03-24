@@ -10,7 +10,7 @@ import (
 
 type Consumer struct {
 	ClientId  string
-	ReplicaId int
+	ReplicaId int32
 }
 
 type Producer struct {
