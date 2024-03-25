@@ -1,49 +1,34 @@
-package main
+package types
 
 import (
 	"bytes"
 	"encoding/binary"
 )
 
-type ForgottenTopic struct {
-	Topic      string
-	Partitions int32
-}
+func (kafka *Kafka) Fetch(topic string) ([]FetchResponse, error) {
 
-func (forgottenTopic *ForgottenTopic) Byte() []byte {
-	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, uint16(len(forgottenTopic.Topic)))
-	binary.Write(buf, binary.BigEndian, []byte(forgottenTopic.Topic))
-	binary.Write(buf, binary.BigEndian, forgottenTopic.Partitions)
-	return buf.Bytes()
-}
+	fetchResponses := []FetchResponse{}
+	currentOffset := 0
+	correlationID := 7
 
-type ForgottenTopicList []ForgottenTopic
-
-func (topics ForgottenTopicList) Byte() []byte {
-	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, uint32(len(topics)))
-	for _, topic := range topics {
-		binary.Write(buf, binary.BigEndian, topic.Byte())
+	fetchRequest := kafka.NewFetchRequestV11(topic, int64(currentOffset), int32(correlationID))
+	err := kafka.Write(fetchRequest.Byte())
+	if err != nil {
+		return nil, err
 	}
-	return buf.Bytes()
-}
+	reader, err := kafka.Read()
+	if err != nil {
+		return nil, err
+	}
+	currentOffset += 2
+	correlationID += 1
+	fetchResponse := FetchResponse{}
+	fetchResponse.Read(reader, kafka)
 
-type RequestHeader struct {
-	APIKey        int16
-	APIVersion    int16
-	CorrelationID int32
-	ClientId      string
-}
+	// fmt.Printf("%+v\n", fetchResponse)
+	fetchResponses = append(fetchResponses, fetchResponse)
 
-func (requestHeader *RequestHeader) Byte() []byte {
-	buf := bytes.NewBuffer([]byte{})
-	binary.Write(buf, binary.BigEndian, requestHeader.APIKey)
-	binary.Write(buf, binary.BigEndian, requestHeader.APIVersion)
-	binary.Write(buf, binary.BigEndian, requestHeader.CorrelationID)
-	binary.Write(buf, binary.BigEndian, uint16(len(requestHeader.ClientId)))
-	binary.Write(buf, binary.BigEndian, []byte(requestHeader.ClientId))
-	return buf.Bytes()
+	return fetchResponses, nil
 }
 
 type FetchRequestV11 struct {
@@ -140,6 +125,7 @@ type FetchPartitionV11 struct {
 	LogStartOffset int64
 	MaxBytes       int32
 }
+
 type FetchPartitionV11List []FetchPartitionV11
 
 func (fetchPartition *FetchPartitionV11) Byte() []byte {

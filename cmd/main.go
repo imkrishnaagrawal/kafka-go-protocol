@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	types "kafka-go/cmd/types"
 )
 
 func main() {
 
-	kafka := NewKafka()
+	kafka := types.NewKafka()
 	kafka.Connect("localhost:9092")
 	defer kafka.Close()
 
