@@ -117,23 +117,33 @@ func (abortedTransaction *AbortedTransaction) Read(reader *bytes.Reader) {
 }
 
 type MessageSet struct {
-	RecordBatch
+	RecordBatch []RecordBatch
 }
 
 func (messageSet *MessageSet) Read(messageReader *bytes.Reader) {
-	messageSet.RecordBatch = RecordBatch{}
-	messageSet.RecordBatch.Read(messageReader)
-	binary.Read(messageReader, binary.BigEndian, &messageSet.RecordBatch.RecordLength)
+	messageSet.RecordBatch = []RecordBatch{}
+	for {
+		len := messageReader.Len()
+		if len <= 0 {
+			break
+		}
+		recordBatch := RecordBatch{}
+		recordBatch.Read(messageReader)
+		binary.Read(messageReader, binary.BigEndian, &recordBatch.RecordLength)
 
-	record := Record{}
-	record.Read(messageReader)
-	binary.Read(messageReader, binary.BigEndian, record.HeaderLength)
-	for h := 0; h < int(record.HeaderLength); h++ {
-		header := Header{}
-		header.Read(messageReader)
-		record.Headers = append(record.Headers, header)
+		record := Record{}
+		record.Read(messageReader)
+		binary.Read(messageReader, binary.BigEndian, record.HeaderLength)
+		for h := 0; h < int(record.HeaderLength); h++ {
+			header := Header{}
+			header.Read(messageReader)
+			record.Headers = append(record.Headers, header)
+		}
+		recordBatch.Records = append(recordBatch.Records, record)
+
+		// binary.Read(messageReader, binary.BigEndian, &recordBatch.RecordLength)
+		messageSet.RecordBatch = append(messageSet.RecordBatch, recordBatch)
 	}
-	messageSet.RecordBatch.Records = append(messageSet.RecordBatch.Records, record)
 }
 
 type RecordBatch struct {
@@ -183,7 +193,7 @@ type Record struct {
 	Key            string
 	ValueLength    int64
 	Value          string
-	HeaderLength   uint32
+	HeaderLength   uint8
 	Headers        []Header
 }
 

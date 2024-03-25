@@ -10,6 +10,9 @@ func main() {
 	kafka.Connect("localhost:9092")
 	defer kafka.Close()
 
-	fetchResponse, _ := kafka.Fetch("test")
-	fmt.Printf("%+v\n", *fetchResponse)
+	fetchResponses, _ := kafka.Fetch("test")
+	for _, fetchResponse := range fetchResponses {
+		fmt.Printf("%+v\n", fetchResponse)
+	}
+
 }

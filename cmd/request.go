@@ -60,12 +60,12 @@ type FetchRequestV11 struct {
 	RackId            string
 }
 
-func (kafka *Kafka) NewFetchRequestV11(topic string) *FetchRequestV11 {
+func (kafka *Kafka) NewFetchRequestV11(topic string, offset int64, correlationID int32) *FetchRequestV11 {
 	return &FetchRequestV11{
 		RequestHeader: RequestHeader{
 			APIKey:        API_KEY_FETCH,
 			APIVersion:    11,
-			CorrelationID: 7,
+			CorrelationID: correlationID,
 			ClientId:      kafka.ClientId,
 		},
 		ReplicaID:         kafka.ReplicaId,
@@ -82,7 +82,7 @@ func (kafka *Kafka) NewFetchRequestV11(topic string) *FetchRequestV11 {
 					FetchPartitionV11{
 						PartitionID:    0,
 						LeaderEpoch:    0,
-						Offset:         0,
+						Offset:         offset,
 						LogStartOffset: -1,
 						MaxBytes:       1048576,
 					},

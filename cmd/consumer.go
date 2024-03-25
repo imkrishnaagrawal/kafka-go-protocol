@@ -37,54 +37,31 @@ func (kafka *Kafka) APIVersion() *bytes.Buffer {
 	return request
 }
 
-func (kafka *Kafka) Fetch(topic string) (*FetchResponse, error) {
+func (kafka *Kafka) Fetch(topic string) ([]FetchResponse, error) {
 
-	request := bytes.NewBuffer([]byte{})
-	request.Write(Uint32bytes(0))                   // Request Size
-	request.Write(Uint16bytes(1))                   // API KEY
-	request.Write(Uint16bytes(11))                  // API Version
-	request.Write(Uint32bytes(7))                   // Correlation ID
-	request.Write(Uint16bytes(len(kafka.ClientId))) // Client
-	request.WriteString(kafka.ClientId)
-	request.Write(Uint32bytes(int(kafka.ReplicaId)))
-	request.Write(Uint32bytes(500))
-	request.Write(Uint32bytes(1))
-	request.Write(Uint32bytes(52428800))
-	request.Write([]byte{1})
-	request.Write(Uint32bytes(0))
-	request.Write(Uint32bytes(-1))
+	fetchResponses := []FetchResponse{}
+	currentOffset := 0
+	correlationID := 7
+	for {
+		fetchRequest := kafka.NewFetchRequestV11(topic, int64(currentOffset), int32(correlationID))
+		err := kafka.Write(fetchRequest.Byte())
+		if err != nil {
+			return nil, err
+		}
+		reader, err := kafka.Read()
+		if err != nil {
+			return nil, err
+		}
+		currentOffset += 2
+		correlationID += 1
+		fetchResponse := FetchResponse{}
+		fetchResponse.Read(reader, kafka)
 
-	request.Write(Uint32bytes(1))
-
-	request.Write(Uint16bytes(len(topic)))
-	request.WriteString(topic)
-
-	request.Write(Uint32bytes(1)) // parti len
-
-	request.Write(Uint32bytes(0)) // partId
-	request.Write(Uint32bytes(0)) // Leader Epoch
-
-	request.Write(Uint32bytes(0))
-	request.Write(Uint32bytes(0))
-
-	request.Write(Uint32bytes(-1))
-	request.Write(Uint32bytes(-1))
-
-	request.Write(Uint32bytes(1048576))
-	request.Write(Uint32bytes(0))
-	request.Write(Uint16bytes(0))
-
-	fetchRequest := kafka.NewFetchRequestV11(topic)
-	err := kafka.Write(fetchRequest.Byte())
-	if err != nil {
-		return nil, err
+		// fmt.Printf("%+v\n", fetchResponse)
+		fetchResponses = append(fetchResponses, fetchResponse)
+		if fetchResponse.Topics[0].Partitions[0].LastStableOffset < uint64(currentOffset) {
+			break
+		}
 	}
-	reader, err := kafka.Read()
-	if err != nil {
-		return nil, err
-	}
-
-	fetchResponse := FetchResponse{}
-	fetchResponse.Read(reader, kafka)
-	return &fetchResponse, nil
+	return fetchResponses, nil
 }
